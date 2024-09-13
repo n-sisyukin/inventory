@@ -273,6 +273,10 @@ def inventory(to_screen=True, to_file=True, filename='inventory_result.json'):
     # POSTRUN BEGIN
 
     inventory.pop('network_nonstd_id')
+    for interface in inventory['network_interfaces'].values():
+        if 'ips' in interface.keys():
+            if len(interface['ips']) == 0:
+                interface.pop('ips')
 
     # POSTRUN END
     # ----------------------------------------------------------------------
@@ -288,7 +292,7 @@ def inventory(to_screen=True, to_file=True, filename='inventory_result.json'):
     # ----------------------------------------------------------------------
 
 def main():
-    inventory()
+    inventory(to_screen=True, to_file=True, filename='inventory_result.json')
 
 if __name__ == '__main__':
     main()
