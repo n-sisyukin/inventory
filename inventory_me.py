@@ -221,18 +221,26 @@ def inventory(to_screen=True, to_file=True, filename='inventory_result.json'):
     # ----------------------------------------------------------------------
     # OS BEGIN
 
-    inventory['os_version'] = subprocess.run(['grep', '-i', 'pretty', '/etc/os-release'], capture_output=True, text=True).stdout.split("\"")[1]
+    inventory['os_version'] = subprocess.run(['grep', '-i', 'pretty', '/etc/os-release'], 
+                                             capture_output=True, text=True
+                                             ).stdout.split("\"")[1]
     inventory['os_core'] = subprocess.run(['uname', '-r'], capture_output=True, text=True).stdout.split()[0]
+    
     inventory['os_users'] = [user.split(':')[0] 
-                             for user in subprocess.run(['cat', '/etc/passwd'], capture_output=True, text=True).stdout.split('\n')[:-1:] 
+                             for user in subprocess.run(['cat', '/etc/passwd'], 
+                                                        capture_output=True, text=True
+                                                        ).stdout.split('\n')[:-1:] 
                              if 1000 <= int(user.split(':')[2]) < 60000]
     inventory['os_users'].sort()
-
-    """temp = {f'{record.split()[0]}': {} 
-            for record in subprocess.run(['netstat', '-tulpen'], capture_output=True, text=True).stdout.split('\n')[::] 
-            if True}"""
-    netstat = [record.split() for record in subprocess.run(['netstat', '-tulpen'], capture_output=True, text=True).stdout.split('\n')[2:-1:]]
+    
+    netstat = [record.split() for record in subprocess.run(['netstat', '-tulpen'], 
+                                                           capture_output=True, text=True
+                                                           ).stdout.split('\n')[2:-1:]]
     inventory['os_listen_ports'] = {f'{rec[0]}/{rec[3]}': f'{rec[-1]}' for rec in netstat}
+
+    inventory['os_ssh_port'] = subprocess.run(['grep', '-i', 'port', '/etc/ssh/sshd_config'], 
+                                              capture_output=True, text=True
+                                              ).stdout.split('\n')[0].split()[1]
     
     # OS END
     # ----------------------------------------------------------------------
