@@ -176,9 +176,14 @@ def inventory(to_screen=True, to_file=True, filename='inventory_result.json'):
     inventory['os_hostname'] = None
     inventory['os_version'] = None
     inventory['os_core'] = None
+    inventory['os_users'] = []
+    
+    inventory['os_ssl_version'] = None
+    inventory['os_ssh_version'] = None
+    
     inventory['os_ssh_port'] = None
     inventory['os_listen_ports'] = {}
-    inventory['os_users'] = []
+    
 
     inventory['system_vendor'] = None
     inventory['system_platform'] = None
@@ -229,33 +234,28 @@ def inventory(to_screen=True, to_file=True, filename='inventory_result.json'):
     inventory['os_users'] = [user.split(':')[0] 
                              for user in subprocess.run(['cat', '/etc/passwd'], 
                                                         capture_output=True, text=True
-                                                        ).stdout.split('\n')[:-1:] 
+                                                        ).stdout.splitlines() 
                              if 1000 <= int(user.split(':')[2]) < 60000]
     inventory['os_users'].sort()
     
     netstat = [record.split() for record in subprocess.run(['netstat', '-tulpen'], 
                                                            capture_output=True, text=True
-                                                           ).stdout.split('\n')[2:-1:]]
-    #inventory['os_listen_ports'] = {f'{rec[0]}|{rec[3]}': f'{rec[-1]}' for rec in netstat}
+                                                           ).stdout.splitlines()[2::]]
 
     inventory['os_listen_ports'] = dict(
         sorted(
             {f"{rec[3].split(':')[-1]}|{rec[0]}|{':'.join(rec[3].split(':')[:-1:])}": 
              f"{rec[-1]}"
-             #f"{rec[-1].split('/')[-1] if '/' in rec[-1] else rec[-1]}" 
              for rec in netstat
              }.items(), 
              key=lambda item: int(item[0].split('|')[0])))
-    
-
-    #for record in netstat:
-        
-
-
 
     inventory['os_ssh_port'] = subprocess.run(['grep', '-i', 'port', '/etc/ssh/sshd_config'], 
                                               capture_output=True, text=True
-                                              ).stdout.split('\n')[0].split()[1]
+                                              ).stdout.splitlines()[0].split()[1]
+    
+    inventory['os_ssl_version'] = None
+    inventory['os_ssh_version'] = subprocess.run(['ssh', '-V'], capture_output=True, text=True).stdout
     
     # OS END
     # ----------------------------------------------------------------------
