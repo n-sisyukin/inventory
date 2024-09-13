@@ -236,7 +236,22 @@ def inventory(to_screen=True, to_file=True, filename='inventory_result.json'):
     netstat = [record.split() for record in subprocess.run(['netstat', '-tulpen'], 
                                                            capture_output=True, text=True
                                                            ).stdout.split('\n')[2:-1:]]
-    inventory['os_listen_ports'] = {f'{rec[0]}/{rec[3]}': f'{rec[-1]}' for rec in netstat}
+    #inventory['os_listen_ports'] = {f'{rec[0]}|{rec[3]}': f'{rec[-1]}' for rec in netstat}
+
+    inventory['os_listen_ports'] = dict(
+        sorted(
+            {f"{rec[3].split(':')[-1]}|{rec[0]}|{':'.join(rec[3].split(':')[:-1:])}": 
+             f"{rec[-1]}"
+             #f"{rec[-1].split('/')[-1] if '/' in rec[-1] else rec[-1]}" 
+             for rec in netstat
+             }.items(), 
+             key=lambda item: int(item[0].split('|')[0])))
+    
+
+    #for record in netstat:
+        
+
+
 
     inventory['os_ssh_port'] = subprocess.run(['grep', '-i', 'port', '/etc/ssh/sshd_config'], 
                                               capture_output=True, text=True
