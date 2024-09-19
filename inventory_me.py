@@ -342,7 +342,6 @@ def inventory(to_screen=True, to_file=True, filename='inventory_result.json'):
     # LSHW & LSPCI & STORCLI BEGIN
 
     parse_lshw_l0(json.loads(subprocess.run(['lshw', '-json'], capture_output=True, text=True).stdout), inventory)
-    #parse_lshw_l0(readJSONfromFile('lshw.json'), inventory)
 
     if os.path.exists('/opt/MegaRAID/storcli/storcli64'):
         storcli_path = '/opt/MegaRAID/storcli/storcli64'
