@@ -11,7 +11,10 @@
 # Licence:     MIT License
 #-------------------------------------------------------------------------------
 
-start_dir=$(pwd)
+start_dir=$(dirname ${0})
+if [ "$start_dir" = "." ]; then
+    start_dir=$(pwd)
+fi
 inventory_script_file="inventory2.py"
 inventory_result_file="inventory_result.json"
 inventory_script_file_path=$start_dir/$inventory_script_file
@@ -20,7 +23,9 @@ temp_path=/tmp
 inventory_subdir=inventory-$(date +"%Y-%m-%d")
 full_work_path=$temp_path/$inventory_subdir
 
-mkdir $full_work_path
+if [[ ! -d ${full_work_path} ]]; then
+  mkdir -p ${full_work_path}
+fi
 cp -f $inventory_script_file_path $full_work_path
 cd $full_work_path
 
@@ -35,24 +40,26 @@ uname -r > os_core.txt
 awk -F: '$3>=1000{print $1}' /etc/passwd | grep -iv nobody > os_users.txt
 grep "Port " /etc/ssh/sshd_config | awk '{print $NF}' > os_ssh_port.txt
 openssl version > os_ssl_version.txt
-ssh -V 2> os_ssh_version.txt
+ssh -V > os_ssh_version.txt 2>&1
 
 netstat -tulpen | grep -e 'tcp' -e 'udp' > netstat.txt
 ip link > ip_link.txt
 ip addr > ip_addr.txt
-ip route | sed 's/scope link //g' | sed 's/proto //g' | sed 's/ linkdown//g' | sed 's/ kernel//g' | sed 's/ static//g' > network_routes_all.txt
+ip route | sed -e 's/scope link //g' -e 's/proto //g' -e 's/ linkdown//g' -e 's/ kernel//g' -e 's/ static//g' > network_routes_all.txt
 
 if test -f "/opt/MegaRAID/storcli/storcli64"; then
     storcli="/opt/MegaRAID/storcli/storcli64";
     $storcli \/call \/eall \/sall show all J > storcli.json;
-fi
-if test -f "/opt/MegaRAID/storcli/storcli"; then
+elif test -f "/opt/MegaRAID/storcli/storcli"; then
     storcli="/opt/MegaRAID/storcli/storcli";
     $storcli \/call \/eall \/sall show all J > storcli.json;
 fi
 
-python $inventory_script_file_path 2> /dev/null
-python3 $inventory_script_file_path 2> /dev/null
+if command -v python3 &>/dev/null; then
+    python3 $inventory_script_file_path 2> /dev/null
+else
+    python $inventory_script_file_path 2> /dev/null
+fi
 
 cp -f $inventory_result_file_path $start_dir
 
