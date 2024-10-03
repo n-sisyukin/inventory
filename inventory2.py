@@ -344,11 +344,15 @@ def inventory(to_screen=True, to_file=True, filename='inventory_result.json'):
         if 'inet' in temp_str_by_words:
             if 'ips' not in inventory['network_interfaces'][id].keys():
                 inventory['network_interfaces'][id]['ips'] = []
-            inventory['network_interfaces'][id]['ips'].append(temp_str_by_words[temp_str_by_words.index('inet')+1])
+            temp_ip4 = temp_str_by_words[temp_str_by_words.index('inet')+1]
+            inventory['network_interfaces'][id]['ips'].append(temp_ip4)
+            inventory['network_all_ip_addresses'].append(temp_ip4)
         elif 'inet6' in temp_str_by_words:
             if 'ips' not in inventory['network_interfaces'][id].keys():
                 inventory['network_interfaces'][id]['ips'] = []
-            inventory['network_interfaces'][id]['ips'].append(temp_str_by_words[temp_str_by_words.index('inet6')+1])
+            temp_ip6 = temp_str_by_words[temp_str_by_words.index('inet6')+1]
+            inventory['network_interfaces'][id]['ips'].append(temp_ip6)
+            inventory['network_all_ip_addresses'].append(temp_ip6)
     
     inventory['network_routes_all'] = [' '.join(rec.split()) for rec in readLINESfromFile('network_routes_all.txt')]
     
@@ -369,8 +373,72 @@ def inventory(to_screen=True, to_file=True, filename='inventory_result.json'):
 
     parse_lshw_l0(readJSONfromFile('lshw.json'), inventory)
 
-    if os.path.exists('storcli.json'):
-        parse_storcli_l0(readJSONfromFile('storcli.json'), inventory)
+    if os.path.exists('storcli-controllers.txt'):
+        t_controller = {}
+        for line in readLINESfromFile('storcli-controllers.txt'):
+            t1 = line.split('=')
+            t_controller[t1[0].lower()] = t1[1]
+        
+        for controller in inventory['storages']:
+            if 'megaraid' in controller['model'].lower():
+                controller['model_by_storcli'] = t_controller['model']
+                controller['serial'] = t_controller['serial number']
+
+    if os.path.exists('storcli-disks.json'):
+        parse_storcli_l0(readJSONfromFile('storcli-disks.json'), inventory)
+
+    if os.path.exists('megacli-disks.txt'):
+        temp_disk = {}
+        for line in readLINESfromFile('megacli-disks.txt'):
+            temp = line.split(':')
+            if temp[0].lower() == 'wwn':
+                temp_disk['wwn'] = temp[1].strip().upper()
+            elif temp[0].lower() == 'raw size':
+                temp_disk['size_raw'] = temp[1].strip()
+            elif temp[0].lower() == 'inquiry data':
+                t_line = temp[1].split()
+                temp_disk['serial'] = t_line[0]
+                temp_disk['fw_version'] = t_line[-1]
+                temp_disk['model'] = ' '.join(t_line[1:-1:])
+                inventory['disks'].append(temp_disk)
+                temp_disk = {}
+    
+    if os.path.exists('megacli-controllers.txt'):
+        t_controller = {}
+        for line in readLINESfromFile('megacli-controllers.txt'):
+            t1 = line.split(':')
+            t_controller[t1[0].lower().strip()] = t1[1].strip()
+        
+        for controller in inventory['storages']:
+            if 'megaraid' in controller['model'].lower():
+                controller['model_by_storcli'] = t_controller['product name']
+                controller['serial'] = t_controller['serial no']
+
+    for line in readLINESfromFile('volumes.txt')[1::]:
+        temp_volume = {}
+        q = 1
+        for rec in line.split():
+            t1 = rec.split('=')
+            temp_volume[t1[0].lower()] = t1[1] if len(t1[1]) > 0 else None
+        if 'T' in temp_volume['size']:
+            q = 2 ** 40
+            t2 = temp_volume['size'].replace('T', '')
+        elif 'G' in temp_volume['size']:
+            q = 2 ** 30
+            t2 = temp_volume['size'].replace('G', '')
+        elif 'M' in temp_volume['size']:
+            q = 2 ** 20
+            t2 = temp_volume['size'].replace('M', '')
+        elif 'K' in temp_volume['size']:
+            q = 2 ** 10
+            t2 = temp_volume['size'].replace('K', '')
+        try:
+            temp_volume['size_in_gb'] = int(float(t2) * q // GB)
+        except:
+            temp_volume['size_in_gb'] = None
+        inventory['volumes'].append(temp_volume)
+
+    #inventory['volumes']
 
     # LSHW & LSPCI & STORCLI  END
     # ----------------------------------------------------------------------
@@ -396,7 +464,7 @@ def inventory(to_screen=True, to_file=True, filename='inventory_result.json'):
     # ----------------------------------------------------------------------
 
 def main():
-    inventory(to_screen=False, to_file=True, filename='inventory_result.json')
+    inventory(to_screen=True, to_file=True, filename='inventory_result.json')
 
 if __name__ == '__main__':
     main()

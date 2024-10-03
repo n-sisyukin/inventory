@@ -47,12 +47,20 @@ ip link > ip_link.txt
 ip addr > ip_addr.txt
 ip route | sed -e 's/scope link //g' -e 's/proto //g' -e 's/ linkdown//g' -e 's/ kernel//g' -e 's/ static//g' > network_routes_all.txt
 
-if test -f "/opt/MegaRAID/storcli/storcli64"; then
+lsblk -a -P -p -o NAME,FSTYPE,MOUNTPOINT,SIZE,TYPE | grep -iv loop | sed 's/\"//g'> volumes.txt
+
+if test -f "/usr/local/bin/MegaCli"; then
+    megacli="/usr/local/bin/MegaCli";
+    $megacli -AdpAllInfo -aALL -NoLog | grep -i -e "Product Name" -e "Serial No" > megacli-controllers.txt;
+    $megacli -PDList -aAll -NoLog | grep -i -e "wwn" -e "inquiry" -e "Raw Size" > megacli-disks.txt;
+elif test -f "/opt/MegaRAID/storcli/storcli64"; then
     storcli="/opt/MegaRAID/storcli/storcli64";
-    $storcli \/call \/eall \/sall show all J > storcli.json;
+    $storcli \/call show all nolog | grep -i -e "model = " -e "serial number = " -e "pci address" | grep -iv support | sed 's/ = /=/g' > storcli-controllers.txt;
+    $storcli \/call \/eall \/sall show all J nolog > storcli-disks.json;
 elif test -f "/opt/MegaRAID/storcli/storcli"; then
     storcli="/opt/MegaRAID/storcli/storcli";
-    $storcli \/call \/eall \/sall show all J > storcli.json;
+    $storcli \/call show all nolog | grep -i -e "model = " -e "serial number = " -e "pci address" | grep -iv support | sed 's/ = /=/g' > storcli-controllers.txt;
+    $storcli \/call \/eall \/sall show all J nolog > storcli-disks.json;
 fi
 
 if command -v python3 &>/dev/null; then
