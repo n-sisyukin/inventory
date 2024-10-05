@@ -39,6 +39,7 @@ grep -i pretty /etc/os-release | awk -F\" '{print $2}' > os_version.txt
 uname -r > os_core.txt
 awk -F: '$3>=1000{print $1}' /etc/passwd | grep -iv nobody > os_users.txt
 grep "Port " /etc/ssh/sshd_config | awk '{print $NF}' > os_ssh_port.txt
+cat /etc/ssh/sshd_config | grep -i allowusers | cut -d' ' -f2- > os_users_with_ssh.txt
 openssl version > os_ssl_version.txt
 ssh -V > os_ssh_version.txt 2>&1
 

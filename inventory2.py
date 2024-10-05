@@ -227,11 +227,11 @@ def inventory(to_screen=True, to_file=True, filename='inventory_result.json'):
     inventory['os_version'] = None
     inventory['os_core'] = None
     inventory['os_users'] = []
+    inventory['os_users_with_ssh'] = []
+    inventory['os_ssh_port'] = None
 
     inventory['os_ssl_version'] = None
     inventory['os_ssh_version'] = None
-
-    inventory['os_ssh_port'] = None
 
     inventory['system_vendor'] = None
     inventory['system_platform'] = None
@@ -282,7 +282,8 @@ def inventory(to_screen=True, to_file=True, filename='inventory_result.json'):
     inventory['os_hostname'] = readLINEfromFile('os_hostname.txt')
     inventory['os_version'] = readLINEfromFile('os_version.txt')
     inventory['os_core'] = readLINEfromFile('os_core.txt')
-    inventory['os_users'] =  readLINESfromFile('os_users.txt')
+    inventory['os_users'] =  sorted(readLINESfromFile('os_users.txt'))
+    inventory['os_users_with_ssh'] = sorted(readLINEfromFile('os_users_with_ssh.txt').split())
     inventory['os_ssh_port'] = int(readLINEfromFile('os_ssh_port.txt'))
     inventory['os_ssl_version'] = readLINEfromFile('os_ssl_version.txt')
     inventory['os_ssh_version'] = readLINEfromFile('os_ssh_version.txt')
@@ -346,13 +347,15 @@ def inventory(to_screen=True, to_file=True, filename='inventory_result.json'):
                 inventory['network_interfaces'][id]['ips'] = []
             temp_ip4 = temp_str_by_words[temp_str_by_words.index('inet')+1]
             inventory['network_interfaces'][id]['ips'].append(temp_ip4)
-            inventory['network_all_ip_addresses'].append(temp_ip4)
+            if id != 'lo':
+                inventory['network_all_ip_addresses'].append(temp_ip4)
         elif 'inet6' in temp_str_by_words:
             if 'ips' not in inventory['network_interfaces'][id].keys():
                 inventory['network_interfaces'][id]['ips'] = []
             temp_ip6 = temp_str_by_words[temp_str_by_words.index('inet6')+1]
             inventory['network_interfaces'][id]['ips'].append(temp_ip6)
-            inventory['network_all_ip_addresses'].append(temp_ip6)
+            if id != 'lo':
+                inventory['network_all_ip_addresses'].append(temp_ip6)
     
     inventory['network_routes_all'] = [' '.join(rec.split()) for rec in readLINESfromFile('network_routes_all.txt')]
     
