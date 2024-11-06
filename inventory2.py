@@ -227,11 +227,15 @@ def inventory(to_screen=True, to_file=True, filename='inventory_result.json'):
     inventory['os_version'] = None
     inventory['os_core'] = None
     inventory['os_users'] = []
-    inventory['os_users_with_ssh'] = []
+    inventory['os_users_sudo'] = []
+    inventory['os_users_wheel'] = []
+    inventory['os_users_ssh'] = []
     inventory['os_ssh_port'] = None
 
     inventory['os_ssl_version'] = None
     inventory['os_ssh_version'] = None
+
+    inventory['packages_version'] = {}
 
     inventory['system_vendor'] = None
     inventory['system_platform'] = None
@@ -273,6 +277,8 @@ def inventory(to_screen=True, to_file=True, filename='inventory_result.json'):
     inventory['network_listen_ports'] = {}
     inventory['network_nonstd_id'] = 0
 
+    inventory['docker_containers'] = {}
+
     # PRERUN END
     # ----------------------------------------------------------------------
     # OS BEGIN
@@ -283,10 +289,43 @@ def inventory(to_screen=True, to_file=True, filename='inventory_result.json'):
     inventory['os_version'] = readLINEfromFile('os_version.txt')
     inventory['os_core'] = readLINEfromFile('os_core.txt')
     inventory['os_users'] =  sorted(readLINESfromFile('os_users.txt'))
-    inventory['os_users_with_ssh'] = sorted(readLINEfromFile('os_users_with_ssh.txt').split())
+    
+    temp_users_line = readLINEfromFile('os_users_sudo.txt')
+    if len(temp_users_line) > 0:
+        inventory['os_users_sudo'] = sorted(temp_users_line.split(','))
+    
+    temp_users_line = readLINEfromFile('os_users_wheel.txt')
+    if len(temp_users_line) > 0:    
+        inventory['os_users_wheel'] = sorted(temp_users_line.split(','))
+
+    inventory['os_users_ssh'] = sorted(readLINEfromFile('os_users_ssh.txt').split())
     inventory['os_ssh_port'] = int(readLINEfromFile('os_ssh_port.txt'))
     inventory['os_ssl_version'] = readLINEfromFile('os_ssl_version.txt')
     inventory['os_ssh_version'] = readLINEfromFile('os_ssh_version.txt')
+
+
+
+
+    if os.path.exists('packages_apt.txt'):
+        package_filename = 'packages_apt.txt'
+        flag1 = '/'
+        
+    elif os.path.exists('packages_yum.txt'):
+        package_filename = 'packages_yum.txt'
+        flag1 = '@'
+
+    temp_packages_list = readLINESfromFile(package_filename)[1::]
+    temp_packages_dict = {}
+    for line in temp_packages_list:
+        if flag1 in line:
+            t_name = line.split('/')[0] if flag1 == '/' else line.split()[0]
+            t_ver = line.split()[1].split('-')[0]
+            if ':' in t_ver:
+                temp_packages_dict[t_name] = t_ver.split(':')[1]
+            else:
+                temp_packages_dict[t_name] = t_ver
+
+    inventory['packages_version'] = temp_packages_dict
 
     # OS END
     # ----------------------------------------------------------------------
@@ -302,14 +341,51 @@ def inventory(to_screen=True, to_file=True, filename='inventory_result.json'):
     netstat = sorted(netstat, key=itemgetter(-2))
 
     for rec in netstat:
-        id = 'port {}/{} on {}'.format(rec[0], rec[-2], rec[-1])
+        id = 'port {}/{} on {}'.format(rec[0], rec[-2], rec[-1])[:-1:]
         inventory['network_listen_ports'][id] = {}
         inventory['network_listen_ports'][id]['listen_proto'] = rec[0]
         inventory['network_listen_ports'][id]['listen_port'] = str(rec[-2])
-        inventory['network_listen_ports'][id]['listen_ip'] = rec[-1]
+        inventory['network_listen_ports'][id]['listen_ip'] = rec[-1][:-1:]
         inventory['network_listen_ports'][id]['listen_pid_program'] = rec[-3]
         if str(rec[-2]) not in inventory['network_listen_ports_list']:
             inventory['network_listen_ports_list'].append(str(rec[-2]))
+
+    if os.path.exists('docker.json'):
+        docker_raw = readJSONfromFile('docker.json')
+        docker = []
+        docker_ports = {}
+        
+        for container in docker_raw:
+            docker_temp = {}
+            docker_temp['name'] = container['Names']
+            docker_temp['id'] = container['ID']
+            docker_temp['image'] = container['Image']
+            docker_temp['ports'] = container['Ports'].split(', ') if len(container['Ports']) > 0 else []
+            for port in docker_temp['ports']:
+                if '0.0.0.0:' in port or ':::' in port:
+                    if '0.0.0.0:' in port:
+                        name_temp_port = port.split(':')[-1].split('->')[0]
+                        name_temp_proto = port.split('/')[-1]
+                        name_temp_ip = '0.0.0.0'#port.split(':')[0]
+                    elif ':::' in port:
+                        name_temp_port = port.split(':')[-1].split('->')[0]
+                        name_temp_proto = port.split('/')[-1]+'6'
+                        name_temp_ip = '::'#port.split(':')[0]
+                    name_temp = 'port {}/{} on {}'.format(name_temp_proto, name_temp_port, name_temp_ip)
+                    if name_temp in inventory['network_listen_ports'].keys():
+                        docker_ports[name_temp] = {}
+                        docker_ports[name_temp]['listen_proto'] = name_temp_proto
+                        docker_ports[name_temp]['listen_port'] = name_temp_port
+                        docker_ports[name_temp]['listen_ip'] = name_temp_ip
+                        docker_ports[name_temp]['listen_container_name'] = docker_temp['name']
+                        docker_ports[name_temp]['listen_container_image'] = docker_temp['image']
+                        docker_ports[name_temp]['listen_container_id'] = docker_temp['id']
+                        inventory['network_listen_ports'][name_temp]['listen_container_name'] = docker_temp['name']
+                        inventory['network_listen_ports'][name_temp]['listen_container_image'] = docker_temp['image']
+                        inventory['network_listen_ports'][name_temp]['listen_container_id'] = docker_temp['id']
+            docker.append(docker_temp)
+        
+        inventory['docker_containers'] = docker
 
     ip_link_raw = readLINESfromFile('ip_link.txt')
     ip_addr_raw = readLINESfromFile('ip_addr.txt')
@@ -423,22 +499,23 @@ def inventory(to_screen=True, to_file=True, filename='inventory_result.json'):
         for rec in line.split():
             t1 = rec.split('=')
             temp_volume[t1[0].lower()] = t1[1] if len(t1[1]) > 0 else None
-        if 'T' in temp_volume['size']:
-            q = 2 ** 40
-            t2 = temp_volume['size'].replace('T', '')
-        elif 'G' in temp_volume['size']:
-            q = 2 ** 30
-            t2 = temp_volume['size'].replace('G', '')
-        elif 'M' in temp_volume['size']:
-            q = 2 ** 20
-            t2 = temp_volume['size'].replace('M', '')
-        elif 'K' in temp_volume['size']:
-            q = 2 ** 10
-            t2 = temp_volume['size'].replace('K', '')
-        try:
-            temp_volume['size_in_gb'] = int(float(t2) * q // GB)
-        except:
-            temp_volume['size_in_gb'] = None
+        if temp_volume['size'] is not None:
+            if 'T' in temp_volume['size']:
+                q = 2 ** 40
+                t2 = temp_volume['size'].replace('T', '')
+            elif 'G' in temp_volume['size']:
+                q = 2 ** 30
+                t2 = temp_volume['size'].replace('G', '')
+            elif 'M' in temp_volume['size']:
+                q = 2 ** 20
+                t2 = temp_volume['size'].replace('M', '')
+            elif 'K' in temp_volume['size']:
+                q = 2 ** 10
+                t2 = temp_volume['size'].replace('K', '')
+            try:
+                temp_volume['size_in_gb'] = int(float(t2) * q // GB)
+            except:
+                temp_volume['size_in_gb'] = None
         inventory['volumes'].append(temp_volume)
 
     #inventory['volumes']

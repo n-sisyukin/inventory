@@ -37,11 +37,17 @@ lshw -json > lshw.json
 hostname > os_hostname.txt
 grep -i pretty /etc/os-release | awk -F\" '{print $2}' > os_version.txt
 uname -r > os_core.txt
-awk -F: '$3>=1000{print $1}' /etc/passwd | grep -iv nobody > os_users.txt
+awk -F: '{print $1}' /etc/passwd | grep -iv nobody > os_users.txt
+cat /etc/group | grep -i sudo | awk -F":" '{print $NF}' > os_users_sudo.txt
+cat /etc/group | grep -i wheel | awk -F":" '{print $NF}' > os_users_wheel.txt
 grep "Port " /etc/ssh/sshd_config | awk '{print $NF}' > os_ssh_port.txt
-cat /etc/ssh/sshd_config | grep -i allowusers | cut -d' ' -f2- > os_users_with_ssh.txt
+cat /etc/ssh/sshd_config | grep -i allowusers | cut -d' ' -f2- > os_users_ssh.txt
 openssl version > os_ssl_version.txt
 ssh -V > os_ssh_version.txt 2>&1
+
+if command -v docker &>/dev/null; then
+    docker ps --no-trunc --format '{{json .}}' | jq -s | sed 's/\\\"//g' | jq > docker.json
+fi
 
 netstat -tulpen | grep -e 'tcp' -e 'udp' > netstat.txt
 ip link > ip_link.txt
@@ -62,6 +68,12 @@ elif test -f "/opt/MegaRAID/storcli/storcli"; then
     storcli="/opt/MegaRAID/storcli/storcli";
     $storcli \/call show all nolog | grep -i -e "model = " -e "serial number = " -e "pci address" | grep -iv support | sed 's/ = /=/g' > storcli-controllers.txt;
     $storcli \/call \/eall \/sall show all J nolog > storcli-disks.json;
+fi
+
+if command -v apt &>/dev/null; then
+    apt --installed list > packages_apt.txt 2> /dev/null
+elif command -v yum &>/dev/null; then
+    yum list installed > packages_yum.txt 2> /dev/null
 fi
 
 if command -v python3 &>/dev/null; then
