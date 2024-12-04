@@ -277,7 +277,7 @@ def inventory(to_screen=True, to_file=True, filename='inventory_result.json'):
     inventory['network_listen_ports'] = {}
     inventory['network_nonstd_id'] = 0
 
-    inventory['docker_containers'] = {}
+    inventory['docker_containers'] = []
 
     # PRERUN END
     # ----------------------------------------------------------------------
