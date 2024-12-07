@@ -303,27 +303,33 @@ def inventory(to_screen=True, to_file=True, filename='inventory_result.json'):
     inventory['os_ssl_version'] = readLINEfromFile('os_ssl_version.txt')
     inventory['os_ssh_version'] = readLINEfromFile('os_ssh_version.txt')
 
-
-
-
     if os.path.exists('packages_apt.txt'):
         package_filename = 'packages_apt.txt'
-        flag1 = '/'
+        flag1 = 'apt'
+        temp_packages_list = readLINESfromFile(package_filename)[1::]
         
     elif os.path.exists('packages_yum.txt'):
         package_filename = 'packages_yum.txt'
-        flag1 = '@'
+        flag1 = 'yum'
+        temp_packages_list = readLINESfromFile(package_filename)[2::]
 
-    temp_packages_list = readLINESfromFile(package_filename)[1::]
     temp_packages_dict = {}
-    for line in temp_packages_list:
-        if flag1 in line:
-            t_name = line.split('/')[0] if flag1 == '/' else line.split()[0]
+    flag2_skip = False
+
+    for line_i, line in enumerate(temp_packages_list):
+        if flag2_skip:
+            flag2_skip = False
+            continue
+        t_name = line.split('/')[0] if flag1 == 'apt' else line.split()[0]
+        if len(line.split()) > 1 and not line.startswith(' '):
             t_ver = line.split()[1].split('-')[0]
-            if ':' in t_ver:
-                temp_packages_dict[t_name] = t_ver.split(':')[1]
-            else:
-                temp_packages_dict[t_name] = t_ver
+        elif temp_packages_list[line_i + 1].startswith(' '):
+            t_ver = temp_packages_list[line_i + 1].split()[0].split('-')[0]
+            flag2_skip = True
+        if ':' in t_ver:
+            temp_packages_dict[t_name] = t_ver.split(':')[1]
+        else:
+            temp_packages_dict[t_name] = t_ver
 
     inventory['packages_version'] = temp_packages_dict
 
