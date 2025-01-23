@@ -16,8 +16,12 @@ if [ "$start_dir" = "." ]; then
     start_dir=$(pwd)
 fi
 inventory_script_file="inventory2.py"
-inventory_result_file="inventory_result.json"
+#inventory_result_file="inventory_result.json"
 inventory_script_file_path=$start_dir/$inventory_script_file
+
+for file in $(ls -la $start_dir | awk '{print $NF}' | grep -i result); do
+    rm -f $file
+done
 
 temp_path=/tmp
 inventory_subdir=inventory-$(date +"%Y-%m-%d")
@@ -30,7 +34,7 @@ cp -f $inventory_script_file_path $full_work_path
 cd $full_work_path
 
 inventory_script_file_path=$full_work_path/$inventory_script_file
-inventory_result_file_path=$full_work_path/$inventory_result_file
+#inventory_result_file_path=$full_work_path/$inventory_result_file
 
 date +"%Y-%m-%d | %H:%M" > date_of_inventory.txt
 lshw -json > lshw.json
@@ -82,6 +86,13 @@ else
     python $inventory_script_file_path 2> /dev/null
 fi
 
-cp -f $inventory_result_file_path $start_dir
+#cp -f $inventory_result_file_path $start_dir
+#ls -la $full_work_path | awk '{print $NF}' | grep -i result
+
+ls -la $full_work_path | awk '{print $NF}' | grep -i result > result_list.txt
+
+for file in $(ls -la $full_work_path | awk '{print $NF}' | grep -i result); do
+    cp -f $file $start_dir
+done
 
 rm -rf $full_work_path

@@ -25,11 +25,31 @@ def readJSONfromFile(filename):
 
 # ----------------------------------------------------------------------
 
-def dumpJSONtoFile(filename, data, mode='w'):
-    if data != None:
+def dumpJSONtoFile(filename, data, mode='w', maxsize=-1):
+    if data is None:
+        return
+    if maxsize == -1:
+        filename = "{}.json".format(filename)
         with codecs.open(filename, mode, encoding="UTF-8") as f:
             json.dump(data, f, ensure_ascii=False, indent=4)
-    return
+        return
+    if maxsize > 0:
+        file_counter = 1
+        part_of_data = {}
+        for key, value in data.items():
+            if len(json.dumps(part_of_data, ensure_ascii=False, indent=4)) > maxsize:
+                part_filename = "{}_{}.json".format(filename, file_counter)
+                with codecs.open(part_filename, mode, encoding="UTF-8") as f:
+                    json.dump(part_of_data, f, ensure_ascii=False, indent=4)
+                file_counter += 1
+                part_of_data = {key: value}
+            else:
+                part_of_data[key] = value
+        if len(part_of_data) > 0:
+            part_filename = "{}_{}.json".format(filename, file_counter)
+            with codecs.open(part_filename, mode, encoding="UTF-8") as f:
+                json.dump(part_of_data, f, ensure_ascii=False, indent=4)
+        return
 
 # ----------------------------------------------------------------------
 
@@ -212,7 +232,7 @@ def parse_storcli_l0(storcli_data, inventory):
 
 # ----------------------------------------------------------------------
 
-def inventory(to_screen=True, to_file=True, filename='inventory_result.json'):
+def inventory(to_screen=True, to_file=True, filename='result'):
 
     # ----------------------------------------------------------------------
     # PRERUN BEGIN
@@ -550,7 +570,7 @@ def inventory(to_screen=True, to_file=True, filename='inventory_result.json'):
     # ----------------------------------------------------------------------
 
 def main():
-    inventory(to_screen=True, to_file=True, filename='inventory_result.json')
+    inventory(to_screen=True, to_file=True, filename='result')
 
 if __name__ == '__main__':
     main()
