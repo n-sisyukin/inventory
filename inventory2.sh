@@ -91,7 +91,7 @@ fi
 
 ls -la $full_work_path | awk '{print $NF}' | grep -i result > result_list.txt
 
-for file in $(ls -la $full_work_path | awk '{print $NF}' | grep -i result); do
+for file in $(ls -la $full_work_path | awk '{print $NF}' | grep -i result | grep -v "result_list.txt"); do
     cp -f $file $start_dir
 done
 
