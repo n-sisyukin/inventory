@@ -89,9 +89,9 @@ fi
 #cp -f $inventory_result_file_path $start_dir
 #ls -la $full_work_path | awk '{print $NF}' | grep -i result
 
-ls -la $full_work_path | awk '{print $NF}' | grep -i result > result_list.txt
+ls -la $full_work_path | awk '{print $NF}' | grep -i result | grep -v "result_list.txt" > result_list.txt
 
-for file in $(ls -la $full_work_path | awk '{print $NF}' | grep -i result | grep -v "result_list.txt"); do
+for file in $(ls -la $full_work_path | awk '{print $NF}' | grep -i result); do
     cp -f $file $start_dir
 done
 
