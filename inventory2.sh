@@ -47,7 +47,8 @@ cat /etc/ssh/sshd_config | grep -i allowusers | cut -d' ' -f2- > os_users_ssh.tx
 openssl version > os_ssl_version.txt
 ssh -V > os_ssh_version.txt 2>&1
 
-if (command -v docker &>/dev/null) && ([[ -S /run/docker.sock ]] || [[ -S /var/run/docker.sock ]]); then
+#if (command -v docker &>/dev/null) && ([[ -S /run/docker.sock ]] || [[ -S /var/run/docker.sock ]]); then
+if (command -v docker &>/dev/null) && (docker ps &>/dev/null); then
     docker ps --no-trunc --format '{{json .}}' | jq -s | sed 's/\\\"//g' | jq > docker.json
 fi
 
