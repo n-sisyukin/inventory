@@ -119,7 +119,11 @@ def parse_lshw_l1(lshw_data, inventory):
         if lshw_data['description'].lower() == 'cpu' and 'product' in lshw_data.keys():
             inventory['cpu_model'] = lshw_data['product']
             inventory['cpu_count'] += 1
-            inventory['cpu_count_of_all_cores'] += int(lshw_data['configuration']['cores'])
+            if 'configuration' in lshw_data.keys():
+                inventory['cpu_count_of_all_cores'] += int(lshw_data['configuration']['cores'])
+            else:
+                inventory['cpu_count_of_all_cores'] += 1
+
 
         if (lshw_data['description'].lower() == 'vga compatible controller' or
             (lshw_data['id'].lower() == 'display' and lshw_data['class'].lower() == 'display')):
@@ -564,7 +568,7 @@ def inventory(to_screen=True, to_file=True, filename='result'):
         print(json.dumps(inventory, ensure_ascii='UTF-8', indent=4))
 
     if to_file == True:
-        dumpJSONtoFile(filename, inventory)
+        dumpJSONtoFile(filename, inventory, maxsize=10*1024)
 
     # OUTPUT RESULTS END
     # ----------------------------------------------------------------------
