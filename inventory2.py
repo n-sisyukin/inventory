@@ -102,7 +102,8 @@ def parse_lshw_l1(lshw_data, inventory):
             inventory['system_serial'] = assing_if_is(lshw_data, 'serial')
             if inventory['system_platform'] is not None:
                 if ('kvm' in inventory['system_platform'].lower() or
-                    'vmware' in inventory['system_platform'].lower()):
+                    'vmware' in inventory['system_platform'].lower() or
+                    'bochs' in inventory['system_vendor'].lower()):
                     inventory['is_vm'] = True
 
         if lshw_data['description'].lower() == 'motherboard':
