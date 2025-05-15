@@ -15,6 +15,18 @@ start_dir=$(dirname ${0})
 if [ "$start_dir" = "." ]; then
     start_dir=$(pwd)
 fi
+
+logfile=$start_dir/inventory2.log
+rm -f $logfile
+touch $logfile
+
+blockfile=$start_dir/blockfile.lock
+if [[ -f $blockfile ]]; then
+    echo "Script is already running. Exiting."
+    exit 1
+fi
+touch $blockfile
+
 inventory_script_file="inventory2.py"
 inventory_script_file_path=$start_dir/$inventory_script_file
 
@@ -29,6 +41,7 @@ full_work_path=$temp_path/$inventory_subdir
 if [[ ! -d ${full_work_path} ]]; then
   mkdir -p ${full_work_path}
 fi
+
 cp -f $inventory_script_file_path $full_work_path
 cd $full_work_path
 
@@ -47,8 +60,7 @@ cat /etc/ssh/sshd_config | grep -i allowusers | cut -d' ' -f2- > os_users_ssh.tx
 openssl version > os_ssl_version.txt
 ssh -V > os_ssh_version.txt 2>&1
 
-#if (command -v docker &>/dev/null) && ([[ -S /run/docker.sock ]] || [[ -S /var/run/docker.sock ]]); then
-if (command -v docker &>/dev/null) && (docker ps &>/dev/null); then
+if (command -v docker &>>$logfile) && (docker ps &>>$logfile); then
     docker ps --no-trunc --format '{{json .}}' | jq -s | sed 's/\\\"//g' | jq > docker.json
 fi
 
@@ -73,22 +85,22 @@ elif test -f "/opt/MegaRAID/storcli/storcli"; then
     $storcli \/call \/eall \/sall show all J nolog > storcli-disks.json;
 fi
 
-if command -v apt &>/dev/null; then
-    apt --installed list > packages_apt.txt 2> /dev/null
-elif command -v yum &>/dev/null; then
-    yum list installed > packages_yum.txt 2> /dev/null
+if command -v apt &>>$logfile; then
+    apt --installed list > packages_apt.txt 2>>$logfile
+elif command -v yum &>>$logfile; then
+    yum list installed > packages_yum.txt 2>>$logfile
 fi
 
-if command -v python3 &>/dev/null; then
-    python3 $inventory_script_file_path 2> /dev/null
+if command -v python3 &>>$logfile; then
+    python3 $inventory_script_file_path
 else
-    python $inventory_script_file_path 2> /dev/null
+    python $inventory_script_file_path
 fi
-
-ls -la $full_work_path | awk '{print $NF}' | grep -i result | grep -v "result_list.txt" > result_list.txt
 
 for file in $(ls -la $full_work_path | awk '{print $NF}' | grep -i result); do
     cp -f $file $start_dir
 done
 
+cd $start_dir
 rm -rf $full_work_path
+rm -f $blockfile

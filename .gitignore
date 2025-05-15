@@ -1,3 +1,5 @@
-# Игнорировать все файлы json и txt
+# Игнорировать все файлы json, txt, log и файл блокировки
 *.json
 *.txt
+*.log
+blockfile.lock

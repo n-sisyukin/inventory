@@ -569,7 +569,7 @@ def inventory(to_screen=True, to_file=True, filename='result'):
         print(json.dumps(inventory, ensure_ascii='UTF-8', indent=4))
 
     if to_file == True:
-        dumpJSONtoFile(filename, inventory, maxsize=10*1024)
+        dumpJSONtoFile(filename, inventory)
 
     # OUTPUT RESULTS END
     # ----------------------------------------------------------------------
