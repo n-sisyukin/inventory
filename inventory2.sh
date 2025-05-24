@@ -95,9 +95,9 @@ elif command -v yum &>>$logfile; then
 fi
 
 if command -v python3 &>>$logfile; then
-    python3 $inventory_script_file_path &>>$logfile
+    python3 $inventory_script_file_path 2>>$logfile
 else
-    python $inventory_script_file_path &>>$logfile
+    python $inventory_script_file_path 2>>$logfile
 fi
 
 for file in $(ls -la $full_work_path | awk '{print $NF}' | grep -i result); do
