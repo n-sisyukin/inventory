@@ -121,7 +121,10 @@ def parse_lshw_l1(lshw_data, inventory):
             inventory['cpu_model'] = lshw_data['product']
             inventory['cpu_count'] += 1
             if 'configuration' in lshw_data.keys():
-                inventory['cpu_count_of_all_cores'] += int(lshw_data['configuration']['cores'])
+                if 'cores' in lshw_data['configuration'].keys():
+                    inventory['cpu_count_of_all_cores'] += int(lshw_data['configuration']['cores'])
+                else:
+                    inventory['cpu_count_of_all_cores'] += 1
             else:
                 inventory['cpu_count_of_all_cores'] += 1
 
@@ -247,6 +250,7 @@ def inventory(to_screen=True, to_file=True, filename='result'):
     inventory['is_vm'] = False
 
     inventory['date_of_inventory'] = None
+    inventory['script_version'] = None
 
     inventory['os_hostname'] = None
     inventory['os_version'] = None
@@ -296,7 +300,7 @@ def inventory(to_screen=True, to_file=True, filename='result'):
     inventory['psu'] = []
 
     inventory['network_all_ip_addresses'] = []
-    inventory['network_routes_all'] = []
+    inventory['network_routes_all'] = {}
     inventory['network_interfaces'] = {}
     inventory['network_listen_ports_list'] = []
     inventory['network_listen_ports'] = {}
@@ -309,6 +313,7 @@ def inventory(to_screen=True, to_file=True, filename='result'):
     # OS BEGIN
 
     inventory['date_of_inventory'] = readLINEfromFile('date_of_inventory.txt')
+    inventory['script_version'] = readLINEfromFile('VERSION')
 
     inventory['os_hostname'] = readLINEfromFile('os_hostname.txt')
     inventory['os_version'] = readLINEfromFile('os_version.txt')
@@ -464,15 +469,40 @@ def inventory(to_screen=True, to_file=True, filename='result'):
             if id != 'lo':
                 inventory['network_all_ip_addresses'].append(temp_ip6)
     
-    inventory['network_routes_all'] = [' '.join(rec.split()) for rec in readLINESfromFile('network_routes_all.txt')]
+    raw_routes = readLINESfromFile('network_routes_all.txt')
     
-    for route_raw in inventory['network_routes_all']:
-        route = route_raw.split()
-        id = route.index('dev') + 1
-        if route[id] in inventory['network_interfaces'].keys():
-            if 'routes_to' not in inventory['network_interfaces'][route[id]].keys():
-                inventory['network_interfaces'][route[id]]['routes_to'] = []
-            inventory['network_interfaces'][route[id]]['routes_to'].append(route[0])
+    route_destination = None
+    for line in raw_routes:
+        l1 = line.split()
+        if route_destination != l1[0]:
+            t_route = {}
+            k1 = True
+        if not line.startswith('\t') and len(line) > 0:
+            route_destination = l1[0]
+            if route_destination not in inventory['network_routes_all'].keys():
+                inventory['network_routes_all'][route_destination] = []
+            if 'src' in l1:
+                t_route['src'] = l1[l1.index('src') + 1]
+            if 'via' in l1:
+                t_route['gw'] = l1[l1.index('via') + 1]
+            if 'dev' in l1:
+                t_route['dev'] = l1[l1.index('dev') + 1]
+        elif line.startswith('\t') and len(line) > 0 and 'nexthop' in line.lower():
+            if 'src' in l1:
+                t_route['src'] = l1[l1.index('src') + 1]
+            if 'via' in l1:
+                t_route['gw'] = l1[l1.index('via') + 1]
+            if 'dev' in l1:
+                t_route['dev'] = l1[l1.index('dev') + 1]
+        if len(t_route) > 0:
+            if 'dev' in t_route.keys():
+                if t_route['dev'] in inventory['network_interfaces']:
+                    if 'routes_to' not in inventory['network_interfaces'][t_route['dev']].keys():
+                        inventory['network_interfaces'][t_route['dev']]['routes_to'] = []
+                    inventory['network_interfaces'][t_route['dev']]['routes_to'].append(route_destination)
+            if k1:
+                inventory['network_routes_all'][route_destination].append(t_route)
+                k1 = False
 
     inventory['network_all_ip_addresses'].sort()
     inventory['network_interfaces'].pop('lo')

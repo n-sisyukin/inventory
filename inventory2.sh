@@ -27,6 +27,8 @@ if [[ -f $blockfile ]]; then
 fi
 touch $blockfile
 
+inventory_script_version="VERSION"
+inventory_script_version_path=$start_dir/$inventory_script_version
 inventory_script_file="inventory2.py"
 inventory_script_file_path=$start_dir/$inventory_script_file
 
@@ -42,6 +44,7 @@ if [[ ! -d ${full_work_path} ]]; then
   mkdir -p ${full_work_path}
 fi
 
+cp -f $inventory_script_version_path $full_work_path
 cp -f $inventory_script_file_path $full_work_path
 cd $full_work_path
 
@@ -92,9 +95,9 @@ elif command -v yum &>>$logfile; then
 fi
 
 if command -v python3 &>>$logfile; then
-    python3 $inventory_script_file_path
+    python3 $inventory_script_file_path &>>$logfile
 else
-    python $inventory_script_file_path
+    python $inventory_script_file_path &>>$logfile
 fi
 
 for file in $(ls -la $full_work_path | awk '{print $NF}' | grep -i result); do
