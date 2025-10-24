@@ -110,5 +110,7 @@ for file in $(ls -la $full_work_path | awk '{print $NF}' | grep -i result); do
     cp -f $file $start_dir
 done
 
+cat $start_dir/result.json | jq --indent 4
+
 cd $start_dir
 rm -rf $full_work_path
