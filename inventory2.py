@@ -25,31 +25,16 @@ def readJSONfromFile(filename):
 
 # ----------------------------------------------------------------------
 
-def dumpJSONtoFile(filename, data, mode='w', maxsize=-1):
+def dumpJSONtoFile(filename, data, mode='w'):
+    
     if data is None:
         return
-    if maxsize == -1:
-        filename = "{}.json".format(filename)
-        with codecs.open(filename, mode, encoding="UTF-8") as f:
-            json.dump(data, f, ensure_ascii=False, indent=4)
-        return
-    if maxsize > 0:
-        file_counter = 1
-        part_of_data = {}
-        for key, value in data.items():
-            if len(json.dumps(part_of_data, ensure_ascii=False, indent=4)) > maxsize:
-                part_filename = "{}_{}.json".format(filename, file_counter)
-                with codecs.open(part_filename, mode, encoding="UTF-8") as f:
-                    json.dump(part_of_data, f, ensure_ascii=False, indent=4)
-                file_counter += 1
-                part_of_data = {key: value}
-            else:
-                part_of_data[key] = value
-        if len(part_of_data) > 0:
-            part_filename = "{}_{}.json".format(filename, file_counter)
-            with codecs.open(part_filename, mode, encoding="UTF-8") as f:
-                json.dump(part_of_data, f, ensure_ascii=False, indent=4)
-        return
+    
+    filename = "{}.json".format(filename)
+    with codecs.open(filename, mode, encoding="UTF-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=4)
+
+    return
 
 # ----------------------------------------------------------------------
 
@@ -66,7 +51,7 @@ def readLINESfromFile(filename):
 # ----------------------------------------------------------------------
 
 def assing_if_is(value, key):
-    if key in value.keys():
+    if key in list(value.keys()):
         if value[key] != 'None':
             return value[key]
         else:
@@ -80,10 +65,10 @@ def parse_lshw_l0(lshw_data, inventory):
     if isinstance(lshw_data, list):
         for lshw_data_element in lshw_data:
             parse_lshw_l1(lshw_data_element, inventory)
-            if 'children' in lshw_data_element.keys():
+            if 'children' in list(lshw_data_element.keys()):
                 parse_lshw_l0(lshw_data_element['children'], inventory)
     elif isinstance(lshw_data, dict):
-        if 'children' in lshw_data.keys():
+        if 'children' in list(lshw_data.keys()):
             parse_lshw_l1(lshw_data, inventory)
             parse_lshw_l0(lshw_data['children'], inventory)
         else:
@@ -93,7 +78,7 @@ def parse_lshw_l0(lshw_data, inventory):
 # ----------------------------------------------------------------------
 
 def parse_lshw_l1(lshw_data, inventory):
-    if 'description' in lshw_data.keys():
+    if 'description' in list(lshw_data.keys()):
 
         if lshw_data['description'].lower() == 'computer':
             inventory['system_vendor'] = assing_if_is(lshw_data, 'vendor')
@@ -117,11 +102,11 @@ def parse_lshw_l1(lshw_data, inventory):
             inventory['mb_bios_version'] = assing_if_is(lshw_data, 'version')
             inventory['mb_bios_date'] = assing_if_is(lshw_data, 'date')
 
-        if lshw_data['description'].lower() == 'cpu' and 'product' in lshw_data.keys():
+        if lshw_data['description'].lower() == 'cpu' and 'product' in list(lshw_data.keys()):
             inventory['cpu_model'] = lshw_data['product']
             inventory['cpu_count'] += 1
-            if 'configuration' in lshw_data.keys():
-                if 'cores' in lshw_data['configuration'].keys():
+            if 'configuration' in list(lshw_data.keys()):
+                if 'cores' in list(lshw_data['configuration'].keys()):
                     inventory['cpu_count_of_all_cores'] += int(lshw_data['configuration']['cores'])
                 else:
                     inventory['cpu_count_of_all_cores'] += 1
@@ -158,9 +143,9 @@ def parse_lshw_l1(lshw_data, inventory):
             temp_disk = {}
 
             temp_disk['model'] = assing_if_is(lshw_data, 'product')
-            if 'children' in lshw_data.keys():
+            if 'children' in list(lshw_data.keys()):
                 for temp in lshw_data['children']:
-                    if 'size' in temp.keys():
+                    if 'size' in list(temp.keys()):
                         temp_disk['size_in_gb'] = assing_if_is(temp, 'size')
                         if isinstance(temp_disk['size_in_gb'], int):
                             temp_disk['size_in_gb'] //= GB
@@ -183,14 +168,17 @@ def parse_lshw_l1(lshw_data, inventory):
             temp_disk['logicalname'] = assing_if_is(lshw_data, 'logicalname')
             inventory['disks'].append(temp_disk)
 
+        
         if lshw_data['description'].lower() == 'system memory':
-            inventory['memory_size_in_gb'] = lshw_data['size'] / GB
+            if 'size' in lshw_data.keys():
+                inventory['memory_size_in_gb'] = lshw_data['size'] / GB                
 
         if (lshw_data['class'].lower() == 'memory' and
             'cache' not in lshw_data['description'] and
             'bios' not in lshw_data['description'].lower() and
             'system memory' not in lshw_data['description'].lower() and
-            'size' in lshw_data.keys()):
+            'size' in list(lshw_data.keys()) and
+            'slot' in list(lshw_data.keys())):
             temp_ram_module = {}
             temp_ram_module['slot'] = lshw_data['slot']
             temp_ram_module['vendor'] = assing_if_is(lshw_data, 'vendor')
@@ -205,19 +193,21 @@ def parse_lshw_l1(lshw_data, inventory):
             inventory['memory_modules'].append(temp_ram_module)
 
         if (lshw_data['class'].lower() == 'network' and
-            'logicalname' in lshw_data.keys()):
-            if lshw_data['logicalname'] in inventory['network_interfaces'].keys():
-                if 'vendor' in lshw_data.keys():
+            'logicalname' in list(lshw_data.keys())):
+            if isinstance(lshw_data['logicalname'], list):
+                lshw_data['logicalname'] = lshw_data['logicalname'][0]
+            if lshw_data['logicalname'] in list(inventory['network_interfaces'].keys()):
+                if 'vendor' in list(lshw_data.keys()):
                     inventory['network_interfaces'][lshw_data['logicalname']]['vendor'] = lshw_data['vendor']
-                if 'product' in lshw_data.keys():
+                if 'product' in list(lshw_data.keys()):
                     inventory['network_interfaces'][lshw_data['logicalname']]['product'] = lshw_data['product']
 
-        elif (lshw_data['class'].lower() == 'network' and 'logicalname' not in lshw_data.keys()):
+        elif (lshw_data['class'].lower() == 'network' and 'logicalname' not in list(lshw_data.keys())):
             temp_id = "{}{}".format(lshw_data['configuration']['driver'], inventory['network_nonstd_id'])
             inventory['network_interfaces'][temp_id] = {}
-            if 'vendor' in lshw_data.keys():
+            if 'vendor' in list(lshw_data.keys()):
                 inventory['network_interfaces'][temp_id]['vendor'] = lshw_data['vendor']
-            if 'product' in lshw_data.keys():
+            if 'product' in list(lshw_data.keys()):
                 inventory['network_interfaces'][temp_id]['product'] = lshw_data['product']
             inventory['network_nonstd_id'] += 1
 
@@ -229,7 +219,7 @@ def parse_storcli_l0(storcli_data, inventory):
             if isinstance(drive, dict):
                 for drive_detail in drive.values():
                     if isinstance(drive_detail, dict):
-                        if 'SN' in drive_detail.keys() and 'Model Number' in drive_detail.keys():
+                        if 'SN' in list(drive_detail.keys() and 'Model Number' in drive_detail.keys()):
                             temp_disk = {}
                             temp_disk['model'] = assing_if_is(drive_detail, 'Model Number')
                             temp_disk['size_raw'] = assing_if_is(drive_detail, 'Raw size')
@@ -408,7 +398,7 @@ def inventory(to_screen=True, to_file=True, filename='result'):
                         name_temp_proto = port.split('/')[-1]+'6'
                         name_temp_ip = '::'#port.split(':')[0]
                     name_temp = 'port {}/{} on {}'.format(name_temp_proto, name_temp_port, name_temp_ip)
-                    if name_temp in inventory['network_listen_ports'].keys():
+                    if name_temp in list(inventory['network_listen_ports'].keys()):
                         docker_ports[name_temp] = {}
                         docker_ports[name_temp]['listen_proto'] = name_temp_proto
                         docker_ports[name_temp]['listen_port'] = name_temp_port
@@ -432,10 +422,10 @@ def inventory(to_screen=True, to_file=True, filename='result'):
             temp_link_data = None
             id = temp_str.replace(': ', ':').split(':')[1]
             if '@' in id:
-                if id.split('@')[1] in inventory['network_interfaces'].keys():
+                if id.split('@')[1] in list(inventory['network_interfaces'].keys()):
                     temp_link_data = id.split('@')[1]
                 id = id.split('@')[0]
-            if id not in inventory['network_interfaces'].keys():
+            if id not in list(inventory['network_interfaces'].keys()):
                 inventory['network_interfaces'][id] = {}
             if temp_link_data is not None:
                 inventory['network_interfaces'][id]['link'] = temp_link_data
@@ -444,7 +434,7 @@ def inventory(to_screen=True, to_file=True, filename='result'):
         if 'link/ether' in temp_str_by_words:
             inventory['network_interfaces'][id]['mac'] = temp_str_by_words[temp_str_by_words.index('link/ether')+1]
         if 'altname' in temp_str_by_words:
-            if 'altnames' not in inventory['network_interfaces'][id].keys():
+            if 'altnames' not in list(inventory['network_interfaces'][id].keys()):
                 inventory['network_interfaces'][id]['altnames'] = []
             inventory['network_interfaces'][id]['altnames'].append(temp_str_by_words[temp_str_by_words.index('altname')+1])
 
@@ -455,14 +445,14 @@ def inventory(to_screen=True, to_file=True, filename='result'):
             if '@' in id:
                 id = id.split('@')[0]
         if 'inet' in temp_str_by_words:
-            if 'ips' not in inventory['network_interfaces'][id].keys():
+            if 'ips' not in list(inventory['network_interfaces'][id].keys()):
                 inventory['network_interfaces'][id]['ips'] = []
             temp_ip4 = temp_str_by_words[temp_str_by_words.index('inet')+1]
             inventory['network_interfaces'][id]['ips'].append(temp_ip4)
             if id != 'lo':
                 inventory['network_all_ip_addresses'].append(temp_ip4)
         elif 'inet6' in temp_str_by_words:
-            if 'ips' not in inventory['network_interfaces'][id].keys():
+            if 'ips' not in list(inventory['network_interfaces'][id].keys()):
                 inventory['network_interfaces'][id]['ips'] = []
             temp_ip6 = temp_str_by_words[temp_str_by_words.index('inet6')+1]
             inventory['network_interfaces'][id]['ips'].append(temp_ip6)
@@ -479,7 +469,7 @@ def inventory(to_screen=True, to_file=True, filename='result'):
             k1 = True
         if not line.startswith('\t') and len(line) > 0:
             route_destination = l1[0]
-            if route_destination not in inventory['network_routes_all'].keys():
+            if route_destination not in list(inventory['network_routes_all'].keys()):
                 inventory['network_routes_all'][route_destination] = []
             if 'src' in l1:
                 t_route['src'] = l1[l1.index('src') + 1]
@@ -495,9 +485,9 @@ def inventory(to_screen=True, to_file=True, filename='result'):
             if 'dev' in l1:
                 t_route['dev'] = l1[l1.index('dev') + 1]
         if len(t_route) > 0:
-            if 'dev' in t_route.keys():
+            if 'dev' in list(t_route.keys()):
                 if t_route['dev'] in inventory['network_interfaces']:
-                    if 'routes_to' not in inventory['network_interfaces'][t_route['dev']].keys():
+                    if 'routes_to' not in list(inventory['network_interfaces'][t_route['dev']].keys()):
                         inventory['network_interfaces'][t_route['dev']]['routes_to'] = []
                     inventory['network_interfaces'][t_route['dev']]['routes_to'].append(route_destination)
             if k1:
@@ -512,6 +502,10 @@ def inventory(to_screen=True, to_file=True, filename='result'):
     # LSHW & LSPCI & STORCLI BEGIN
 
     parse_lshw_l0(readJSONfromFile('lshw.json'), inventory)
+
+    if inventory['memory_size_in_gb'] == 0:
+        for module in inventory['memory_modules']:
+            inventory['memory_size_in_gb'] += module['size_in_gb']
 
     if os.path.exists('storcli-controllers.txt'):
         t_controller = {}
@@ -579,15 +573,13 @@ def inventory(to_screen=True, to_file=True, filename='result'):
                 temp_volume['size_in_gb'] = None
         inventory['volumes'].append(temp_volume)
 
-    #inventory['volumes']
-
     # LSHW & LSPCI & STORCLI  END
     # ----------------------------------------------------------------------
     # POSTRUN BEGIN
 
     inventory.pop('network_nonstd_id')
     for interface in inventory['network_interfaces'].values():
-        if 'ips' in interface.keys():
+        if 'ips' in list(interface.keys()):
             if len(interface['ips']) == 0:
                 interface.pop('ips')
 
@@ -605,7 +597,7 @@ def inventory(to_screen=True, to_file=True, filename='result'):
     # ----------------------------------------------------------------------
 
 def main():
-    inventory(to_screen=True, to_file=True, filename='result')
+    inventory(to_screen=False, to_file=True, filename='result')
 
 if __name__ == '__main__':
     main()

@@ -11,21 +11,23 @@
 # Licence:     MIT License
 #-------------------------------------------------------------------------------
 
+set -Eo pipefail
+
 start_dir=$(dirname ${0})
 if [ "$start_dir" = "." ]; then
     start_dir=$(pwd)
 fi
 
 logfile=$start_dir/inventory2.log
+blockfile=$start_dir/blockfile.lock
+
+exec 200>"$blockfile"
+flock -n 200 || { echo "Script is already running. Exiting."; exit 1; }
+
+cd $start_dir
+
 rm -f $logfile
 touch $logfile
-
-blockfile=$start_dir/blockfile.lock
-if [[ -f $blockfile ]]; then
-    echo "Script is already running. Exiting."
-    exit 1
-fi
-touch $blockfile
 
 inventory_script_version="VERSION"
 inventory_script_version_path=$start_dir/$inventory_script_version
@@ -51,7 +53,11 @@ cd $full_work_path
 inventory_script_file_path=$full_work_path/$inventory_script_file
 
 date +"%Y-%m-%d | %H:%M" > date_of_inventory.txt
+
+dmesg -n 1
 lshw -json > lshw.json
+dmesg -n 4
+
 hostname > os_hostname.txt
 grep -i pretty /etc/os-release | awk -F\" '{print $2}' > os_version.txt
 uname -r > os_core.txt
@@ -64,7 +70,7 @@ openssl version > os_ssl_version.txt
 ssh -V > os_ssh_version.txt 2>&1
 
 if (command -v docker &>>$logfile) && (docker ps &>>$logfile); then
-    docker ps --no-trunc --format '{{json .}}' | jq -s | sed 's/\\\"//g' | jq > docker.json
+    docker ps --no-trunc --format '{{json .}}' | jq -s '.' | sed 's/\\\"//g' | jq '.' > docker.json
 fi
 
 netstat -tulpen | grep -e 'tcp' -e 'udp' > netstat.txt
@@ -95,9 +101,9 @@ elif command -v yum &>>$logfile; then
 fi
 
 if command -v python3 &>>$logfile; then
-    python3 $inventory_script_file_path 2>>$logfile
+    python3 $inventory_script_file_path &>>$logfile
 else
-    python $inventory_script_file_path 2>>$logfile
+    python $inventory_script_file_path &>>$logfile
 fi
 
 for file in $(ls -la $full_work_path | awk '{print $NF}' | grep -i result); do
@@ -106,4 +112,3 @@ done
 
 cd $start_dir
 rm -rf $full_work_path
-rm -f $blockfile
